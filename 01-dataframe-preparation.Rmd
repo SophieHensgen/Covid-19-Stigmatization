@@ -1,0 +1,625 @@
+---
+title: "Data Preparation"
+author: "Sophie Hensgen"
+date: "5/12/2021"
+output: html_document
+---
+
+```{r packages, include=FALSE}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(naniar)
+```
+
+## Aufbereitung
+
+
+```{r load data set, include = FALSE}
+
+df_origin <- read_csv("stigma-origin-df.csv")
+df_origin_nolab <- read_csv("stigma-origin-df-nolabel.csv")
+
+```
+
+
+```{r preparation df_origin_nolab, echo=FALSE}
+
+# select variables which I need for the analysis.
+
+df_nolab <- df_origin_nolab %>%
+  select(lfdn, c_0003, c_0004, c_0005, c_0006, v_19, v_258, v_42, v_21, v_22, v_37, v_38, v_39, v_36, v_153,v_154,v_155, v_156, v_157, v_158, v_181, v_182,v_183, v_184, v_185, v_186, v_187, v_188, v_189, v_190, v_191, v_192, v_193, v_194, v_195, v_196, v_197, v_198, dispcode, duration)
+
+# assign column names
+
+colnames(df_nolab) <- c("id","V100", "V200", "V300", "V400", "SD100", "SD200", "SD300", "SD400", "SD400_o", "SD600_1", "SD600_2","SD600_3","SD700", "SDS100_v1", "SDS200_v1", "SDS300_v1", "SDS400_v1", "SDS500_v1", "SDS600_v1", "SDS100_v2", "SDS200_v2", "SDS300_v2", "SDS400_v2", "SDS500_v2", "SDS600_v2", "SDS100_v3", "SDS200_v3", "SDS300_v3", "SDS400_v3", "SDS500_v3", "SDS600_v3", "SDS100_v4", "SDS200_v4", "SDS300_v4", "SDS400_v4", "SDS500_v4", "SDS600_v4", "completed", "duration")
+
+head(df_nolab)
+
+```
+
+
+###########################################################################################################################################
+##                                                                                                                                       ##
+##                                                 Data Frame Preparation                                                                ##
+##                                                                                                                                       ##
+###########################################################################################################################################
+
+## Creating New Variables/Prepare Data
+
+```{r creating new Variables land}
+
+###########################################################################################################################################
+
+
+### Age - SD200 - gen_alter
+
+# 1 = 18-39 years old
+# 2 = 40-60 years old
+# 3 = 60+ years old
+
+df_nolab <-  df_nolab %>%
+  mutate(gen_alter = ifelse(SD200 < 40, 1,
+                            ifelse(SD200 >=40 & SD200 <= 60, 2,
+                                   ifelse(SD200 > 60, 3, 99))))
+count(df_nolab, gen_alter)
+# No missings available because quoting was used, no skipping allowed.  
+
+###########################################################################################################################################
+
+
+### state of Germany - SD300 - gen_bund
+
+# 1 = BaWü
+# 2 = Bayern
+# 3 = Berlin
+# 4 = Brandenburg (ost)
+# 5 = Bremen
+# 6 = Hamburg
+# 7 = Hessen
+# 8 = MeckPom (ost)
+# 9 = Niedersachsen
+# 10 = NRW
+# 11 = Rheinland-Pfalz
+# 12 = Saarland
+# 13 = Sachsen (ost)
+# 14 = Sachsen-Anhalt (ost)
+# 15 = Schleswig-Holstein
+# 16 = Thüringen (ost)
+
+
+### state of Germany - East/West
+
+# 1 = West
+# 0 = East
+
+df_nolab <-  df_nolab %>%
+  mutate(gen_bund = ifelse(SD300 == 4, 0,
+                                  ifelse(SD300 == 8, 0,
+                                         ifelse(SD300 == 13, 0,
+                                                ifelse(SD300 == 14, 0, 
+                                                       ifelse(SD400 == 16, 0, 1))))))
+
+###########################################################################################################################################
+
+
+### School SD400 - gen_schule
+
+# new variable:
+
+# 0 = No High School Diploma
+# 1 = High School Diploma
+# 99 = Missings (Other) 
+
+df_nolab <-  df_nolab %>%
+  mutate(gen_schule = ifelse(SD400 >= 3 & SD400 <= 4, 0,
+                                  ifelse(SD400 >= 5 & SD400 <= 6, 1,
+                                         ifelse(SD400 == 2, 0,
+                                                ifelse(SD400 == 7 & SD400_o == "Uni abschluss", 1, 
+                                                       ifelse(SD400 == 7 & SD400_o == "Master", 1,
+                                                              ifelse(SD400 == 7 & SD400_o == "Doktor", 1,
+                                                                     ifelse(SD400 == 7 & SD400_o == "Studium", 1,
+                                                                            ifelse(SD400 == 7 & SD400_o == "Hauptschule", 0,99)))))))))
+
+
+###########################################################################################################################################
+
+
+### Nationality SD600 - gen_staat
+
+# 1 = German
+# 2 = EU-Country
+# 3 = Non-EU-Country
+# 4 = German + EU-Country
+# 5 = German + Non-EU-Country
+# 6 = EU-Country + Non-EU-Country
+# 99 = Missing (no answer)
+
+df_nolab <-  df_nolab %>%
+  mutate(gen_staat = ifelse((df_nolab$SD600_1 == 1) & (df_nolab$SD600_2 == 1), 4,
+                            ifelse((df_nolab$SD600_1 ==1) & (df_nolab$SD600_3 == 1), 5,
+                                   ifelse((df_nolab$SD600_2 == 1) & (df_nolab$SD600_3), 6,
+                                          ifelse((df_nolab$SD600_1 == 1), 1,
+                                                 ifelse((df_nolab$SD600_2 == 1), 2,
+                                                        ifelse((df_nolab$SD600_3), 3, 99)))))))
+
+
+###########################################################################################################################################
+
+
+### Birthplace Eltern SD700
+
+# 1 = Yes (Abroad)
+# 2 = No (Not Abroad)
+# 99 = Missing
+
+count(df_nolab, SD700)
+
+df_nolab$SD700[df_nolab$SD700 == 0] <- 99
+
+###########################################################################################################################################
+
+
+### Heritage
+
+# 1 = German
+# 2 = Others
+# 99 = Missing
+
+df_nolab <- df_nolab %>%
+  mutate(gen_herkunft = ifelse((gen_staat == 1) & (SD700 == 2), 1, 
+                               ifelse((gen_staat >= 1) & (gen_staat < 7) & (SD700 == 1), 2,
+                                      ifelse((gen_staat > 1) & (gen_staat < 7) & (SD700 == 2), 2, 
+                                             ifelse((gen_staat == 99) & (SD700 == 1), 2, 99 )))))
+
+## Note: 
+
+# German nationality X birthplace parents Missing = 5 cases --> unclear
+# nationality missing X place of birth parents outside = 2 cases --> in any case migration background
+# nationality missing X place of birth parents Germany = 13 cases --> unclear
+# nationality missing X place of birth parents missing = 1 cases --> unclear
+ 
+
+## control: 
+
+table(df_nolab$gen_staat, df_nolab$SD700)
+count(df_nolab, gen_herkunft)
+
+
+###########################################################################################################################################
+
+### Implementation survey - completed
+
+# 1 = No Breaks
+# 0 = Breaks
+
+df_nolab <- df_nolab %>%
+  mutate(completed = ifelse(completed == 31, 1, 0))
+
+
+```
+
+###########################################################################################################################################
+##                                                                                                                                       ##
+##                                                 Vignette Variable                                                                     ##
+##                                                                                                                                       ##
+###########################################################################################################################################
+
+```{r Creating new Variables - First Vignette}
+
+### Gender of fictional Character
+
+# 1 = women
+# 0 = men
+
+df_nolab <- df_nolab %>%
+  mutate(sex_v1 = ifelse(grepl("Nina", df_nolab$V100), 1,
+                      ifelse(grepl("Elif", df_nolab$V100), 1,
+                             ifelse(grepl("Li-Ming", df_nolab$V100), 1, 0))))
+
+### Ethnicity
+
+# 1 = German
+# 2 = Turkish
+# 3 = Asian
+
+df_nolab <- df_nolab %>%
+  mutate(ethnie_v1 = ifelse(grepl("M\xfcller", df_nolab$V100), 1,
+                            ifelse(grepl("Ceylan", df_nolab$V100), 2, 3)))
+
+### Ethnicity
+
+# 22 = 22 years old
+# 43 = 43 years old
+# 64 = 64 years old
+
+df_nolab <- df_nolab %>%
+  mutate(alter_v1 = ifelse(grepl("22", df_nolab$V100), 22,
+                            ifelse(grepl("43", df_nolab$V100), 43, 64)))
+
+### Occupation
+
+# 1 = Nurse
+# 2 = Cashier
+# 3 = Administrative
+
+df_nolab <- df_nolab %>%
+  mutate(beruf_v1 = ifelse(grepl("Krankenhaus", df_nolab$V100), 1,
+                            ifelse(grepl("Supermarkt", df_nolab$V100), 2, 3)))
+
+### Essential Worker
+
+# 0 = Non-Essential Worker
+# 1 = Essential worker
+
+df_nolab <- df_nolab %>%
+  mutate(essential_v1 = ifelse(grepl("Home Office", df_nolab$V100), 0, 1))
+
+### Covid-19
+
+# 1 = Currently infected
+# 2 = Former infected
+# 3 = not mentioned
+
+df_nolab <- df_nolab %>%
+  mutate(infektion_v1 = ifelse(grepl("gestern", df_nolab$V100), 1,
+                            ifelse(grepl("drei Wochen", df_nolab$V100), 2, 3)))
+
+
+```
+
+
+```{r Creating new Variables - Second Vignette}
+
+### Gender of fictional Character
+
+# 1 = women
+# 0 = men
+
+df_nolab <- df_nolab %>%
+  mutate(sex_v2 = ifelse(grepl("Nina", df_nolab$V200), 1,
+                      ifelse(grepl("Elif", df_nolab$V200), 1,
+                             ifelse(grepl("Li-Ming", df_nolab$V200), 1, 0))))
+
+### Ethnicity
+
+# 1 = German
+# 2 = Turkish
+# 3 = Asian
+
+df_nolab <- df_nolab %>%
+  mutate(ethnie_v2 = ifelse(grepl("M\xfcller", df_nolab$V200), 1,
+                            ifelse(grepl("Ceylan", df_nolab$V200), 2, 3)))
+
+### Ethnicity
+
+# 22 = 22 years old
+# 43 = 43 years old
+# 64 = 64 years old
+
+df_nolab <- df_nolab %>%
+  mutate(alter_v2 = ifelse(grepl("22", df_nolab$V200), 22,
+                            ifelse(grepl("43", df_nolab$V200), 43, 64)))
+
+### Occupation
+
+# 1 = Nurse
+# 2 = Cashier
+# 3 = Administrative
+
+df_nolab <- df_nolab %>%
+  mutate(beruf_v2 = ifelse(grepl("Krankenhaus", df_nolab$V200), 1,
+                            ifelse(grepl("Supermarkt", df_nolab$V200), 2, 3)))
+
+### Essential Worker
+
+# 0 = Non-Essential Worker
+# 1 = Essential worker
+
+df_nolab <- df_nolab %>%
+  mutate(essential_v2 = ifelse(grepl("Home Office", df_nolab$V200), 0, 1))
+
+### Covid-19
+
+# 1 = Currently infected
+# 2 = Former infected
+# 3 = not mentioned
+
+df_nolab <- df_nolab %>%
+  mutate(infektion_v2 = ifelse(grepl("gestern", df_nolab$V200), 1,
+                            ifelse(grepl("drei Wochen", df_nolab$V200), 2, 3)))
+
+```
+
+
+```{r Creating new Variables - Third Vignette}
+
+### Gender of fictional Character
+
+# 1 = women
+# 0 = men
+
+df_nolab <- df_nolab %>%
+  mutate(sex_v3 = ifelse(grepl("Nina", df_nolab$V300), 1,
+                      ifelse(grepl("Elif", df_nolab$V300), 1,
+                             ifelse(grepl("Li-Ming", df_nolab$V300), 1, 0))))
+
+### Ethnicity
+
+# 1 = German
+# 2 = Turkish
+# 3 = Asian
+
+df_nolab <- df_nolab %>%
+  mutate(ethnie_v3 = ifelse(grepl("M\xfcller", df_nolab$V300), 1,
+                            ifelse(grepl("Ceylan", df_nolab$V300), 2, 3)))
+
+### Ethnicity
+
+# 22 = 22 years old
+# 43 = 43 years old
+# 64 = 64 years old
+
+df_nolab <- df_nolab %>%
+  mutate(alter_v3 = ifelse(grepl("22", df_nolab$V300), 22,
+                            ifelse(grepl("43", df_nolab$V300), 43, 64)))
+
+### Occupation
+
+# 1 = Nurse
+# 2 = Cashier
+# 3 = Administrative
+
+df_nolab <- df_nolab %>%
+  mutate(beruf_v3 = ifelse(grepl("Krankenhaus", df_nolab$V300), 1,
+                            ifelse(grepl("Supermarkt", df_nolab$V300), 2, 3)))
+
+### Essential Worker
+
+# 0 = Non-Essential Worker
+# 1 = Essential worker
+
+df_nolab <- df_nolab %>%
+  mutate(essential_v3 = ifelse(grepl("Home Office", df_nolab$V300), 0, 1))
+
+### Covid-19
+
+# 1 = Currently infected
+# 2 = Former infected
+# 3 = not mentioned
+
+df_nolab <- df_nolab %>%
+  mutate(infektion_v3 = ifelse(grepl("gestern", df_nolab$V300), 1,
+                            ifelse(grepl("drei Wochen", df_nolab$V300), 2, 3)))
+
+```
+
+```{r Creating new Variables - Fourth Vignette}
+
+### Gender of fictional Character
+
+# 1 = women
+# 0 = men
+
+df_nolab <- df_nolab %>%
+  mutate(sex_v4 = ifelse(grepl("Nina", df_nolab$V400), 1,
+                      ifelse(grepl("Elif", df_nolab$V400), 1,
+                             ifelse(grepl("Li-Ming", df_nolab$V400), 1, 0))))
+
+### Ethnicity
+
+# 1 = German
+# 2 = Turkish
+# 3 = Asian
+
+df_nolab <- df_nolab %>%
+  mutate(ethnie_v4 = ifelse(grepl("M\xfcller", df_nolab$V400), 1,
+                            ifelse(grepl("Ceylan", df_nolab$V400), 2, 3)))
+
+### Ethnicity
+
+# 22 = 22 years old
+# 43 = 43 years old
+# 64 = 64 years old
+
+df_nolab <- df_nolab %>%
+  mutate(alter_v4 = ifelse(grepl("22", df_nolab$V400), 22,
+                            ifelse(grepl("43", df_nolab$V400), 43, 64)))
+
+### Occupation
+
+# 1 = Nurse
+# 2 = Cashier
+# 3 = Administrative
+
+df_nolab <- df_nolab %>%
+  mutate(beruf_v4 = ifelse(grepl("Krankenhaus", df_nolab$V400), 1,
+                            ifelse(grepl("Supermarkt", df_nolab$V400), 2, 3)))
+
+### Essential Worker
+
+# 0 = Non-Essential Worker
+# 1 = Essential worker
+
+df_nolab <- df_nolab %>%
+  mutate(essential_v4 = ifelse(grepl("Home Office", df_nolab$V400), 0, 1))
+
+### Covid-19
+
+# 1 = Currently infected
+# 2 = Former infected
+# 3 = not mentioned
+
+df_nolab <- df_nolab %>%
+  mutate(infektion_v4 = ifelse(grepl("gestern", df_nolab$V400), 1,
+                            ifelse(grepl("drei Wochen", df_nolab$V400), 2, 3)))
+
+```
+
+
+## NA Convert
+
+```{r NA}
+
+df_nolab <- df_nolab %>%
+  replace_with_na_all(condition = ~.x == 99) # Changed all 99 in NA
+
+```
+
+###########################################################################################################################################
+##                                                                                                                                       ##
+##                                                Saving Wide Data Frame                                                                 ##
+##                                                                                                                                       ##
+###########################################################################################################################################
+
+
+## Saving Data Frame
+
+```{r Saving DataFrame}
+
+write_csv(df_nolab, "df_stigma_wide.csv")
+
+```
+
+## Reshape Data
+
+```{r Reshape Data}
+
+df_stigma_long <- df_nolab %>%
+  select("id","V100", "V200", "V300", "V400", "SD100", "SD200", "SD300", "SD400", "SD600_1", "SD600_2","SD600_3","SD700", "alter_v1", "alter_v2", "alter_v3", "alter_v4", "sex_v1", "sex_v2", "sex_v3", "sex_v4", "ethnie_v1", "ethnie_v2", "ethnie_v3", "ethnie_v4", "beruf_v1", "beruf_v2", "beruf_v3", "beruf_v4", "essential_v1", "essential_v2", "essential_v3", "essential_v4", "infektion_v1", "infektion_v2", "infektion_v3", "infektion_v4","SDS100_v1", "SDS200_v1", "SDS300_v1", "SDS400_v1", "SDS500_v1", "SDS600_v1", "SDS100_v2", "SDS200_v2", "SDS300_v2", "SDS400_v2", "SDS500_v2", "SDS600_v2", "SDS100_v3", "SDS200_v3", "SDS300_v3", "SDS400_v3", "SDS500_v3", "SDS600_v3", "SDS100_v4", "SDS200_v4", "SDS300_v4", "SDS400_v4", "SDS500_v4", "SDS600_v4", "completed", "duration", "gen_alter", "gen_bund", "gen_schule", "gen_staat", "gen_herkunft") %>% #Reihenfolge erstellen
+  gather(key, value, alter_v1:SDS600_v4) %>%
+  separate(key, c("type", "vignr")) %>%
+  spread(type, value)
+
+head(df_stigma_long)
+
+colnames(df_stigma_long) <- c("id","V100", "V200", "V300", "V400", "SD100", "SD200", "SD300", "SD400", "SD600_1", "SD600_2","SD600_3","SD700", "completed", "duration", "gen_alter", "gen_bund", "gen_schule", "gen_staat", "gen_herkunft", "vignr", "gen_alter_v", "gen_beruf_v", "gen_essential_v", "gen_ethnie_v", "gen_infektion_v", "SDS100", "SDS200", "SDS300", "SDS400", "SDS500", "SDS600", "gen_sex_v")
+```
+
+
+###########################################################################################################################################
+##                                                                                                                                       ##
+##                                                 Index Variablen                                                                       ##
+##                                                                                                                                       ##
+###########################################################################################################################################
+
+## Social Distance Scale
+
+```{r Index Variable -  Social Distance Scale}
+###########################################################################################################################################
+
+### Social Distance - 0 to NAs
+
+df_stigma_long$SDS100[df_stigma_long$SDS100 == 0] <- NA
+df_stigma_long$SDS200[df_stigma_long$SDS200 == 0] <- NA
+df_stigma_long$SDS300[df_stigma_long$SDS300 == 0] <- NA
+df_stigma_long$SDS400[df_stigma_long$SDS400 == 0] <- NA
+df_stigma_long$SDS500[df_stigma_long$SDS500 == 0] <- NA
+df_stigma_long$SDS600[df_stigma_long$SDS600 == 0] <- NA
+
+## Explanation 
+
+# I am going to do 3 Index Variables.
+#   1. One including only the first to, regarding marriage and neighbours
+#      -->  According to the factor analysis, being neighbours and married into family seem to be get similar answers, which is why they should create a index variable
+#   2. One including only the last four, regarding work, food, visit, child care
+#      -->  According to the factor analysis, these four question seemed to be answered similarly, which is why they should create a index variable
+
+
+## First Index Variable - including SDS100 & SDS200 questions - Long Term SD
+
+df_stigma_long <- df_stigma_long %>%
+  mutate(gen_sds_longterm = (SDS100 + SDS200)/2) %>%
+  mutate_if(is.numeric, ~round(., 2))
+
+# df_stigma_long$gen_sds_longterm
+
+
+## Second Index Variable - including SDS300, SDS400, SDS500 & SDS600 questions - Short Term SD
+
+df_stigma_long <- df_stigma_long %>%
+  mutate(gen_sds_shortterm = (SDS300 + SDS400 + SDS500 + SDS600)/4) %>%
+  mutate_if(is.numeric, ~round(., 2))
+
+# df_stigma_long$gen_sds_shortterm
+
+
+```
+
+
+## Saving Data Frame
+
+```{r Saving DataFrame}
+
+write_csv(df_stigma_long, "df_stigma_long.csv")
+
+```
+
+
+## Pooled Data Frame
+
+```{r Pooled Data Frame}
+
+## Pooled Social Distance 
+
+df_stigma_pooled <- df_stigma_long %>%
+  gather(type, gen_sds, gen_sds_longterm:gen_sds_shortterm) %>%
+  mutate(type = case_when(type %in% "gen_sds_longterm" ~ 0,
+                          type %in% "gen_sds_shortterm" ~ 1))
+
+```
+
+
+## Saving Data Frame
+
+```{r Saving Pooled DataFrame}
+
+write_csv(df_stigma_pooled, "df_stigma_pooled.csv")
+
+```
+
+## Clean Up
+
+```{r Clean Up}
+
+rm(df_nolab, df_origin, df_origin_nolab)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

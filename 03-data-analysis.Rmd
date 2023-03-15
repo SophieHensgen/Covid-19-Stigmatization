@@ -1,0 +1,496 @@
+---
+title: "Analysis"
+author: "Sophie Hensgen"
+date: "5/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(data.table)
+library(sem)
+library(reshape2)
+library(xtable)
+library(psych)
+library(stargazer)
+library(jtools)
+library(plm)
+library(lmtest)
+library(Matrix)
+library(lme4)
+library(effects)
+library(robotstxt)
+library(RSocrata)
+library(rlist)
+library(pipeR)
+library(gtrendsR)
+library(lubridate)
+library(ggpubr)
+library(ggiraph)
+library(devtools)
+library(ggiraphExtra)
+library(ggeffects)
+library(systemfonts)
+library(broom.mixed)
+library(sjPlot)
+library(sjlabelled)
+library(sjmisc)
+library(tikzDevice)
+library(ggtext)
+```
+
+## Load Data Set
+
+```{r Loading Data Set, include = FALSE}
+
+df_stigma_wide <- read_csv("df_stigma_wide.csv")
+df_stigma_long <- read_csv("df_stigma_long.csv")
+df_stigma_pooled <- read_csv("df_stigma_pooled.csv")
+
+```
+
+## Make Factor Variables
+
+```{r Factor Variables, include = FALSE}
+
+## Variables with more than 2 factors
+
+df_stigma_long$gen_infektion_v <- as.factor(df_stigma_long$gen_infektion_v)
+df_stigma_long$gen_ethnie_v <- as.factor(df_stigma_long$gen_ethnie_v)
+df_stigma_long$gen_alter_v <- as.factor(df_stigma_long$gen_alter_v)
+df_stigma_long$gen_beruf_v <- as.factor(df_stigma_long$gen_beruf_v)
+df_stigma_long$gen_alter <- as.factor(df_stigma_long$gen_alter)
+
+## Dummy Variables
+
+df_stigma_long$gen_sex_v <- as.factor(df_stigma_long$gen_sex_v)
+df_stigma_long$gen_essential_v <- as.factor(df_stigma_long$gen_essential_v)
+df_stigma_long$gen_herkunft <- as.factor(df_stigma_long$gen_herkunft) 
+df_stigma_long$gen_bund <- as.factor(df_stigma_long$gen_bund)
+df_stigma_long$SD100 <- as.factor(df_stigma_long$SD100)
+df_stigma_long$gen_schule <- as.factor(df_stigma_long$gen_schule)
+
+```
+
+## Make Factor Variables - Pooled df
+
+```{r Factor Variables - Pooled df, include = FALSE}
+
+## Variables with more than 2 factors
+
+df_stigma_pooled$gen_infektion_v <- as.factor(df_stigma_pooled$gen_infektion_v)
+df_stigma_pooled$gen_ethnie_v <- as.factor(df_stigma_pooled$gen_ethnie_v)
+df_stigma_pooled$gen_alter_v <- as.factor(df_stigma_pooled$gen_alter_v)
+df_stigma_pooled$gen_beruf_v <- as.factor(df_stigma_pooled$gen_beruf_v)
+df_stigma_pooled$gen_alter <- as.factor(df_stigma_pooled$gen_alter)
+
+## Dummy Variables
+
+df_stigma_pooled$gen_sex_v <- as.factor(df_stigma_pooled$gen_sex_v)
+df_stigma_pooled$gen_essential_v <- as.factor(df_stigma_pooled$gen_essential_v)
+df_stigma_pooled$gen_herkunft <- as.factor(df_stigma_pooled$gen_herkunft) 
+df_stigma_pooled$gen_bund <- as.factor(df_stigma_pooled$gen_bund)
+df_stigma_pooled$SD100 <- as.factor(df_stigma_pooled$SD100)
+df_stigma_pooled$gen_schule <- as.factor(df_stigma_pooled$gen_schule)
+df_stigma_pooled$type <- as.factor(df_stigma_pooled$type)
+
+```
+
+## Changing Reference Category
+
+```{r Reference Category, include = FALSE}
+
+## Variables with more than 2 factors
+
+df_stigma_long$gen_infektion_v <- relevel(df_stigma_long$gen_infektion_v, ref = 3)
+df_stigma_long$gen_beruf_v <- relevel(df_stigma_long$gen_beruf_v, ref = 3)
+df_stigma_long$SD100 <- relevel(df_stigma_long$SD100, ref = 2)
+df_stigma_long$gen_alter <- relevel(df_stigma_long$gen_alter, ref = 1)
+df_stigma_long$gen_ethnie_v <- relevel(df_stigma_long$gen_ethnie_v, ref = 1)
+
+table(df_stigma_long$gen_infektion_v)
+```
+
+## Changing Reference Category
+
+```{r Reference Category, include = FALSE}
+
+## Variables with more than 2 factors
+
+df_stigma_pooled$gen_infektion_v <- relevel(df_stigma_pooled$gen_infektion_v, ref = 3)
+df_stigma_pooled$gen_beruf_v <- relevel(df_stigma_pooled$gen_beruf_v, ref = 3)
+df_stigma_pooled$SD100 <- relevel(df_stigma_pooled$SD100, ref = 2)
+df_stigma_pooled$gen_alter <- relevel(df_stigma_pooled$gen_alter, ref = 1)
+df_stigma_pooled$gen_ethnie_v <- relevel(df_stigma_pooled$gen_ethnie_v, ref = 1)
+
+table(df_stigma_pooled$gen_infektion_v)
+```
+
+###########################################################################################################################################
+##                                                                                                                                       ##
+##                                                 Regression - Random Intercept                                                         ##
+##                                                                                                                                       ##
+###########################################################################################################################################
+
+## Cluster Robust Standard Error Test
+
+```{r Cluster Robust Standard Error Test - shortterm, include = FALSE}
+
+## Random Intercept Model - SD Short term
+
+ranin_short_m10 <-  lmer(gen_sds_shortterm ~ 1 + (1 | id), data = df_stigma_long)
+summary(ranin_short_m10)
+
+ranin_short_m11 <-  lmer(gen_sds_shortterm ~ gen_infektion_v + gen_ethnie_v + gen_beruf_v + gen_alter_v + gen_sex_v + (1 | id), data = df_stigma_long)
+ranin_short_m12 <-  lmer(gen_sds_shortterm  ~ gen_infektion_v + gen_ethnie_v + gen_beruf_v + gen_alter_v + gen_sex_v + gen_infektion_v*gen_ethnie_v + gen_infektion_v*gen_beruf_v + gen_infektion_v*gen_alter_v + (1 | id), data = df_stigma_long)
+
+
+```
+
+```{r Cluster Robust Standard Error Test - longterm, include = FALSE}
+
+## Random Intercept Model - SD LongTerm
+
+ranin_long_m20 <-  lmer(gen_sds_longterm ~ 1 + (1 | id), data = df_stigma_long)
+summary(ranin_long_m20)
+
+ranin_long_m21 <-  lmer(gen_sds_longterm ~ gen_infektion_v + gen_ethnie_v + gen_beruf_v + gen_alter_v + gen_sex_v + (1 | id), data = df_stigma_long)
+ranin_long_m22 <-  lmer(gen_sds_longterm ~ gen_infektion_v + gen_ethnie_v + gen_beruf_v + gen_alter_v + gen_sex_v + gen_infektion_v*gen_ethnie_v + gen_infektion_v*gen_beruf_v + gen_infektion_v*gen_alter_v + (1 | id), data = df_stigma_long)
+
+```
+
+
+```{r Cluster Robust Standard Error Test - pooled, include = FALSE}
+
+## Random Intercept Model - SD LongTerm
+
+ranin_pooled_m30 <-  lmer(gen_sds ~ 1 + (1 | id), data = df_stigma_pooled)
+summary(ranin_pooled_m30)
+
+ranin_pooled_m31 <-  lmer(gen_sds ~ type + gen_infektion_v + gen_ethnie_v + gen_beruf_v + gen_alter_v + gen_sex_v + (1 | id), data = df_stigma_pooled)
+
+```
+
+
+```{r Tables, include = FALSE}
+
+stargazer(ranin_short_m10, ranin_short_m11, ranin_short_m12,
+       title = "Regression Table - Random Intercept Model", 
+       align = TRUE, 
+       type = "text",
+       column.labels = c("M1.0", "M1.1", "M1.2"),
+       dep.var.labels   = c("Short Term - Social Distance"),
+       model.numbers = FALSE,
+       keep.stat = c("n", "ll", "aic", "bic"),
+       star.char = c("*", "**", "***"),
+       star.cutoffs = c(0.05, 0.01, 0.001))
+
+stargazer(ranin_long_m20, ranin_long_m21, ranin_long_m22,
+       title = "Regression Table - Random Intercept Model", 
+       align = TRUE, 
+       type = "text",
+       column.labels = c("M1.0", "M1.1", "M1.2"),
+       dep.var.labels   = c("Long Term - Social Distance"),
+       model.numbers = FALSE,
+       keep.stat = c("n", "ll", "aic", "bic"),
+       star.char = c("*", "**", "***"),
+       star.cutoffs = c(0.05, 0.01, 0.001))
+
+stargazer(ranin_pooled_m30, ranin_pooled_m31, 
+       title = "Regression Table - Random Intercept Model", 
+       align = TRUE, 
+       type = "text",
+       column.labels = c("M1.0", "M1.1", "M1.2"),
+       dep.var.labels   = c("Combined"),
+       model.numbers = FALSE,
+       keep.stat = c("n", "ll", "aic", "bic"),
+       star.char = c("*", "**", "***"),
+       star.cutoffs = c(0.05, 0.01, 0.001))
+```
+
+###########################################################################################################################################
+##                                                                                                                                       ##
+##                                                 Predicted Estimates - Graph                                                           ##
+##                                                                                                                                       ##
+###########################################################################################################################################
+
+## Predicted Estimate Graph
+
+```{r Hypothesis 1 - predicted Estimates}
+
+## 0. Data set
+
+# head(df_stigma_long) # control data set
+
+## 1. Build linear model 
+
+# 1.1 Build Linear Model DV: SDS Short Term
+
+# ranin_short_m12 # From before
+
+# 1.2 Build Linear Model DV: SDS Long Term
+
+#cranin_long_m22 # From before
+
+## 2. Plot Model
+
+# 2.1 Use ggpredict to calculate the average predicted estimates
+
+pred_short_h1 <- ggpredict(ranin_short_m12, terms = c("gen_infektion_v"), type = "fe", typical = c("typical_value")) # shortterm sds
+pred_long_h1 <- ggpredict(ranin_long_m22, terms = c("gen_infektion_v"), type = "fe", typical = c("typical_value")) # longterm sds
+
+# 2.2 Plot the data from 2.1 using ggplot2
+
+# create additional variables to make it easier to combine both graphs
+pred_long_h1$SDS <- "Long-Term SD"
+pred_short_h1$SDS <- "Short-Term SD"
+pred_long_h1$SDS <- as.factor(pred_long_h1$SDS)
+pred_short_h1$SDS <- as.factor(pred_short_h1$SDS)
+pred_h1 <- rbind(pred_long_h1, pred_short_h1)
+pred_h1$x <- as.factor(pred_h1$x)
+
+  
+plot_hyp1 <- pred_h1 %>%
+  mutate(SDS = fct_relevel(SDS, 
+            "Short-Term SD", "Long-Term SD"),
+         x = fct_relevel(x,
+            "1", "2", "3")) %>%
+  ggplot(aes(x = SDS, y = predicted, col = x)) +
+  geom_point(size=1.5, position = position_dodge(width = 0.3)) + 
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width=.02, position = position_dodge(width = 0.3)) +
+  scale_color_manual(name = "Infection Status", values=c("#C4C2C1","#E69F00", "#56B4E9"), 
+                     labels = c("Currently Infected", "Former Infected", "Not Infected")) +
+  labs( x = "Stigmatized Response", y = "Predicted Average Estimates for Social Distance (SD)") +
+  theme_minimal()+
+      #theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      theme(
+      axis.title = element_text(family = 'Times'),
+      axis.text.x = element_markdown(family = 'Times'),
+      axis.text.y = element_markdown(family = 'Times'),
+      legend.text = ggtext::element_markdown(family = 'Times'),
+      legend.title = element_markdown(family = 'Times'))
+    
+    
+print(plot_hyp1)
+ggsave(filename = "hyp1.pdf", width = 14, height = 10, dpi = 300, units = "cm")
+
+```
+
+### Predicted Estimate Graph - Hypothesis 2
+
+```{r Hypothesis 2 - predicted Estimates}
+
+## 0. Data set
+
+# head(df_stigma_long) # control data set
+
+## 1. Build linear model 
+
+# 1.1 Build Linear Model DV: SDS Short Term
+
+# ranin_short_m12 # From before
+
+# 1.2 Build Linear Model DV: SDS Long Term
+
+#cranin_long_m22 # From before
+
+## 2. Plot Model
+
+# 2.1 Use ggpredict to calculate the average predicted estimates
+
+pred_short_h2 <- ggpredict(ranin_short_m12, terms = c("gen_infektion_v", "gen_ethnie_v"), type = "fe", typical = c("typical_value")) # shortterm sds
+pred_long_h2 <- ggpredict(ranin_long_m22, terms = c("gen_infektion_v", "gen_ethnie_v"), type = "fe", typical = c("typical_value")) # longterm sds
+
+# 2.2 Plot the data from 2.1 using ggplot2
+
+# create additional variables to make it easier to combine both graphs
+
+pred_long_h2$SDS <- "Long-Term SD"
+pred_short_h2$SDS <- "Short-Term SD"
+pred_long_h2$SDS <- as.factor(pred_long_h2$SDS)
+pred_short_h2$SDS <- as.factor(pred_short_h2$SDS)
+pred_h2 <- rbind(pred_long_h2, pred_short_h2)
+#pred_h2$x <- as.factor(pred_h2$x)
+
+plot_hyp2 <- pred_h2 %>%
+  mutate(SDS = fct_relevel(SDS, 
+            "Short-Term SD", "Long-Term SD"),
+         x = fct_relevel(x, 
+            "1", "2", "3")) %>% # changed order of categorical variable x
+  ggplot(aes(x=group, y=predicted, col=x)) +
+      geom_point(size=1.5, position = position_dodge(width = 0.3)) +
+      facet_grid(.~SDS) +
+      geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width=.02, position = position_dodge(width = 0.3)) +
+      xlab("Ethnicity") +
+      ylab("Predicted Average Estimates for Social Distance") + 
+      scale_x_discrete(labels = c('German','Turkish','Asian')) +
+      #scale_color_discrete(name = "Ethnicity", labels = c('German','Turkish','Asian')) +
+      scale_color_manual(name = "Infection Status", values=c("#999999", "#E69F00", "#56B4E9"), labels = c('Currently Infected','Former Infected','Not Infected')) +
+      theme_minimal() +
+      #theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      theme(
+      axis.title = element_text(family = 'Times'),
+      axis.text.x = element_markdown(family = 'Times'),
+      axis.text.y = element_markdown(family = 'Times'),
+      legend.text = ggtext::element_markdown(family = 'Times'),
+      legend.title = element_markdown(family = 'Times'))
+
+print(plot_hyp2)
+ggsave(filename = "hyp2.pdf", width = 14, height = 10, dpi = 300, units = "cm")
+```
+
+
+### Predicted Estimate Graph - Hypothesis 3
+
+```{r Hypothesis 3 - predicted Estimates}
+
+## 0. Data set
+
+# head(df_stigma_long) # control data set
+
+## 1. Build linear model 
+
+# 1.1 Build Linear Model DV: SDS Short Term
+
+# ranin_short_m12 # From before
+
+# 1.2 Build Linear Model DV: SDS Long Term
+
+#cranin_long_m22 # From before
+
+## 2. Plot Model
+
+# 2.1 Use ggpredict to calculate the average predicted estimates
+
+pred_short_h3 <- ggpredict(ranin_short_m12, terms = c("gen_infektion_v", "gen_beruf_v"), type = "fe", typical = c("typical_value")) # shortterm sds
+pred_long_h3 <- ggpredict(ranin_long_m22, terms = c("gen_infektion_v", "gen_beruf_v"), type = "fe", typical = c("typical_value")) # longterm sds
+
+# 2.2 Plot the data from 2.1 using ggplot2
+
+# create additional variables to make it easier to combine both graphs
+pred_long_h3$SDS <- "Long-Term SD"
+pred_short_h3$SDS <- "Short-Term SD"
+pred_long_h3$SDS <- as.factor(pred_long_h3$SDS)
+pred_short_h3$SDS <- as.factor(pred_short_h3$SDS)
+pred_h3 <- rbind(pred_short_h3, pred_long_h3)
+
+plot_hyp3 <- pred_h3 %>%
+  mutate(SDS = fct_relevel(SDS, 
+            "Short-Term SD", "Long-Term SD"),
+         x = fct_relevel(x, 
+            "1", "2", "3")) %>% # changed order of categorical variable x
+  ggplot(aes(x=group, y=predicted, col=x)) +
+      geom_point(size=1.5, position = position_dodge(width = 0.3)) +
+      facet_grid(.~SDS) +
+      geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width=.02, position = position_dodge(width = 0.3)) +
+      xlab("Occupation") +
+      ylab("Predicted Average Estimates for Social Distance") + 
+      scale_x_discrete(labels = c("Administrative", "Nurse", "Cashier")) +
+      #scale_color_discrete(name = "Ethnicity", labels = c('German','Turkish','Asian')) +
+      scale_color_manual(name = "Infection Status", values=c("#999999", "#E69F00", "#56B4E9"), labels = c('Currently Infected','Former Infected','Not Infected')) +
+      theme_minimal() +
+      #theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      theme(
+      axis.title = element_text(family = 'Times'),
+      axis.text.x = element_markdown(family = 'Times'),
+      axis.text.y = element_markdown(family = 'Times'),
+      legend.text = ggtext::element_markdown(family = 'Times'),
+      legend.title = element_markdown(family = 'Times'))
+
+print(plot_hyp3)
+ggsave(filename = "hyp3.pdf", width = 14, height = 10, dpi = 300, units = "cm")
+```
+
+
+
+### Predicted Estimate Graph - Hypothesis 4
+
+```{r Hypothesis 4 - predicted Estimates}
+
+## 0. Data set
+
+# head(df_stigma_long) # control data set
+
+## 1. Build linear model 
+
+# 1.1 Build Linear Model DV: SDS Short Term
+
+# ranin_short_m12 # From before
+
+# 1.2 Build Linear Model DV: SDS Long Term
+
+#cranin_long_m22 # From before
+
+## 2. Plot Model
+
+# 2.1 Use ggpredict to calculate the average predicted estimates
+
+pred_short_h4 <- ggpredict(ranin_short_m12, terms = c("gen_infektion_v", "gen_alter_v"), type = "fe", typical = c("typical_value")) # shortterm sds
+pred_long_h4 <- ggpredict(ranin_long_m22, terms = c("gen_infektion_v", "gen_alter_v"), type = "fe", typical = c("typical_value")) # longterm sds
+
+# 2.2 Plot the data from 2.1 using ggplot2
+
+# create additional variables to make it easier to combine both graphs
+pred_long_h4$SDS <- "Long-Term SD"
+pred_short_h4$SDS <- "Short-Term SD"
+pred_long_h4$SDS <- as.factor(pred_long_h4$SDS)
+pred_short_h4$SDS <- as.factor(pred_short_h4$SDS)
+pred_h4 <- rbind(pred_short_h4, pred_long_h4)
+
+# create additional variables to make it easier to combine both graphs
+
+plot_hyp4 <- pred_h4 %>%
+  mutate(SDS = fct_relevel(SDS, 
+            "Short-Term SD", "Long-Term SD"),
+         x = fct_relevel(x, 
+            "1", "2", "3")) %>% # changed order of categorical variable x
+  ggplot(aes(x=group, y=predicted, col=x)) +
+      geom_point(size=1.5, position = position_dodge(width = 0.3)) +
+      facet_grid(.~SDS) +
+      geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width=.02, position = position_dodge(width = 0.3)) +
+      xlab("Age") +
+      ylab("Predicted Average Estimates for Social Distance") + 
+      scale_x_discrete(labels = c("22 Years", "43 Years", "64 Years")) +
+      #scale_color_discrete(name = "Ethnicity", labels = c('German','Turkish','Asian')) +
+      scale_color_manual(name = "Infection Status", values=c("#999999", "#E69F00", "#56B4E9"), labels = c('Currently Infected','Former Infected','Not Infected')) +
+      theme_minimal() +
+      #theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+      theme(
+      axis.title = element_text(family = 'Times'),
+      axis.text.x = element_markdown(family = 'Times'),
+      axis.text.y = element_markdown(family = 'Times'),
+      legend.text = ggtext::element_markdown(family = 'Times'),
+      legend.title = element_markdown(family = 'Times'))
+      
+print(plot_hyp4)
+ggsave(filename = "hyp4.pdf", width = 14, height = 10, dpi = 300, units = "cm")
+```
+
+
+```{r Clean Up}
+
+rm(plot_hyp1, plot_hyp2, plot_hyp3, plot_hyp4, pred_h1, pred_h2, pred_h3, pred_h4, pred_long_h1, pred_long_h2, pred_long_h3, pred_long_h4, pred_short_h1, pred_short_h2, pred_short_h3, pred_short_h4, ranin_long_m20, ranin_long_m21, ranin_long_m22, ranin_pooled_m31, ranin_pooled_m30, ranin_short_m10, ranin_short_m11, ranin_short_m12)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

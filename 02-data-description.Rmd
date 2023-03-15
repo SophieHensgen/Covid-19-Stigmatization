@@ -1,0 +1,249 @@
+---
+title: "03-data-descriptive"
+author: "Sophie Hensgen"
+date: "5/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(data.table)
+library(sem)
+library(reshape2)
+library(xtable)
+library(psych)
+library(stargazer)
+```
+
+## Load Data Set
+
+```{r Loading Data Set, include = FALSE}
+
+df_stigma_wide <- read_csv("df_stigma_wide.csv")
+df_stigma_long <- read_csv("df_stigma_long.csv")
+df_stigma_pooled <- read_csv("df_stigma_pooled.csv")
+
+```
+
+## Descriptive
+
+```{r descriptive social demo, include = FALSE}
+
+### Summary with sds long and sds short
+
+# soon subset of the data - only important variables should be included, such as age, sex etc. for short term
+df_stigma_subset_long <- df_stigma_long %>%
+  select(gen_sds_shortterm, gen_herkunft, SD100, gen_alter, gen_bund, gen_schule, vignr, id)
+
+# spread data set in long format, as we are only interested in the participant Level for the summary
+df_stigma_subset_wide <- spread(df_stigma_subset_long, vignr, gen_sds_shortterm)
+
+# soon subset of the data - only important variables should be included, such as age, sex etc. for long term
+df_stigma_subset_long2 <- df_stigma_long %>%
+  select(gen_sds_longterm, gen_herkunft, SD100, gen_alter, gen_bund, gen_schule, vignr, id)
+
+# spread data set in long format, as we are only interested in the participant Level for the summary
+df_stigma_subset_wide2 <- spread(df_stigma_subset_long2, vignr, gen_sds_longterm)
+
+# Combining both data sets 
+df_stigma_subset_wide <- df_stigma_subset_wide %>%
+  full_join(df_stigma_subset_wide2, by = c("id", "gen_herkunft", "SD100", "gen_alter", "gen_bund", "gen_schule"))
+
+# Rename new columns
+colnames(df_stigma_subset_wide) <- c("gen_herkunft", "SD100", "gen_alter", "gen_bund", "gen_schule", "id", "gen_sds_shortterm_v1", "gen_sds_shortterm_v2", "gen_sds_shortterm_v3", "gen_sds_shortterm_v4", "gen_sds_longterm_v1", "gen_sds_longterm_v2", "gen_sds_longterm_v3", "gen_sds_longterm_v4")
+
+## What to include in Summary
+# Question:
+#   Which measurements should be used?
+#   -   Min and Max
+#   -   Mean
+#   -   N
+#   -   Standard Deviation
+# Important!! Only for variables which are NOT Categorical! for those we look into the individual percentage
+
+# Creating a latex Table
+stargazer(data.frame(df_stigma_subset_wide), type = "text", summary = TRUE,summary.stat = c("n", "min", "max", "mean", "median", "sd"),  out = "summary-1.tex", digits=2)
+
+table(df_stigma_subset_wide$gen_sds_shortterm_v1, useNA = "always")
+table(df_stigma_subset_wide$gen_sds_shortterm_v2, useNA = "always")
+table(df_stigma_subset_wide$gen_sds_shortterm_v3, useNA = "always")
+table(df_stigma_subset_wide$gen_sds_shortterm_v4, useNA = "always")
+table(df_stigma_subset_wide$gen_sds_longterm_v1, useNA = "always")
+table(df_stigma_subset_wide$gen_sds_longterm_v2, useNA = "always")
+table(df_stigma_subset_wide$gen_sds_longterm_v3, useNA = "always")
+table(df_stigma_subset_wide$gen_sds_longterm_v4, useNA = "always")
+table(df_stigma_subset_wide$gen_sds_longterm_v4, useNA = "always")
+
+# Calculate the percentages for each factor in these Variables!
+Gender <- (as.data.frame(table(df_stigma_subset_wide$SD100)) %>% rename(Count=1,Freq=2) %>% mutate(Perc=100*Freq/sum(Freq)))
+Age <- (as.data.frame(table(df_stigma_subset_wide$gen_alter)) %>% rename(Count=1,Freq=2) %>% mutate(Perc=100*Freq/sum(Freq)))
+State <- (as.data.frame(table(df_stigma_subset_wide$gen_bund)) %>% rename(Count=1,Freq=2) %>% mutate(Perc=100*Freq/sum(Freq)))
+School <- (as.data.frame(table(df_stigma_subset_wide$gen_schule)) %>% rename(Count=1,Freq=2) %>% mutate(Perc=100*Freq/sum(Freq)))
+Migration <- (as.data.frame(table(df_stigma_subset_wide$gen_herkunft)) %>% rename(Count=1,Freq=2) %>% mutate(Perc=100*Freq/sum(Freq)))
+
+# Combining all rows to a data set
+df_cat <- bind_rows(Gender, State, School, Migration, Age)
+
+stargazer(data.frame(df_cat), type = "text", 
+       summary = FALSE,
+       title = "Quotation Table",
+       label="tab4",
+       covariate.labels = c("", "Label", "Frequency","Percentages"),
+       digits = 1)
+       #dep.var.labels   = c("Social Distance", "Short Term - Social Distance", "Long Term - Social Distance"), 
+       #table.placement = "H",
+       #column.labels = c("Count", "Frequency", "Percentatage"))
+
+table(df_stigma_subset_wide$SD100, useNA = "always")
+table(df_stigma_subset_wide$gen_bund, useNA = "always")
+table(df_stigma_subset_wide$gen_schule, useNA = "always")
+table(df_stigma_subset_wide$gen_herkunft, useNA = "always")
+table(df_stigma_subset_wide$gen_alter, useNA = "always")
+```
+
+###########################################################################################################################################
+##                                                                                                                                       ##
+##                                                 Factor Analysis                                                                       ##
+##                                                                                                                                       ##
+###########################################################################################################################################
+
+
+## Factor Analysis Social Distance Scale
+
+```{r Factor analysis - Social Distance Scale}
+
+# Subset data set
+
+stigma.sds <- df_stigma_long %>%
+  select(SDS100, SDS200, SDS300, SDS400, SDS500, SDS600)
+
+### Factor Analysis
+
+stigma.sds <- na.omit(stigma.sds)
+stigma.sds.fa <- factanal(stigma.sds, factors = 2)
+
+
+### Interpretation the results
+
+apply(stigma.sds.fa$loadings^2,1,sum) # commonality (should be high)
+1 - apply(stigma.sds.fa$loadings^2,1,sum) # uniqueness (should be low)
+
+# factors are worth keeping, as their SS loadings are greater than 1 (Kaiser's rule)
+
+
+### Residual Matrix
+
+Lambda <- stigma.sds.fa$loadings
+Psi <- diag(stigma.sds.fa$uniquenesses)
+S <- stigma.sds.fa$correlation
+Sigma <- Lambda %*% t(Lambda) + Psi
+round(S - Sigma, 6)
+
+```
+
+```{r Factor analysis - Social Distance Scale - graphs}
+
+### Interpretation Factors
+
+stigma.sds.fa.promax <- factanal(stigma.sds, factors = 2, rotation = "promax")
+
+###########################################################################################################################################
+
+# Scree Plot
+
+# perform PCA
+
+results <- prcomp(stigma.sds, scale = TRUE)
+
+# calculate total variance explained by each principal component
+
+var_explained = results$sdev^2 / sum(results$sdev^2)
+
+# scree plot via ggplot
+
+qplot(c(1:6), var_explained) + 
+  geom_line() + 
+  xlab("Principal Component") + 
+  ylab("Variance Explained") +
+  ggtitle("Scree Plot - Social Distance Scale") +
+  ylim(0, 1)
+
+```
+
+```{r Factor analysis - Social Distance Scale - graph}
+
+## Promax fa - Social Distance Scale
+
+stigma.sds.fa.promax <- factanal(stigma.sds, factors = 2, rotation = "promax")
+
+loadings.sds.promax <- xtable(unclass(stigma.sds.fa.promax$loadings)) # putting loadings into data frame
+loadings.sds.promax$id <- c("SDS100", "SDS200", "SDS300", "SDS400", "SDS500", "SDS600") # add id
+
+loadings.sds.promax.long <- melt(loadings.sds.promax, id="id", 
+                   measure=c("Factor1", "Factor2"), 
+                   variable.name="Factor", value.name="Loading")
+
+
+plot_factor1 <- ggplot(loadings.sds.promax.long, aes(x=factor(id), abs(Loading), fill=Loading)) + 
+  facet_wrap(~ Factor, nrow=1) + #place the factors in separate facets
+  geom_bar(stat="identity") + #make the bars
+  coord_flip() + #flip the axes so the test names can be horizontal  
+  #define the fill color gradient: blue=positive, red=negative
+  scale_fill_gradient2(name = "Loading", 
+                       high = "blue", mid = "white", low = "red", 
+                       midpoint=0, guide=F) +
+  ylab("Loading Strength") + #improve y-axis label
+  xlab("Social Distance Scale Questions") +
+  scale_x_discrete(labels = c('Neighbour', 'In-Laws', 'Work', 'Food', 'Meeting', 'Child Care')) +
+  #scale_y_continuous(labels =c("Neighbour", "Marriage", "Work", "Food", "Meeting", "Child Care")) +
+  theme_minimal(base_size=10)
+
+print(plot_factor1)
+ggsave(filename = "factorsds.pdf", width = 14, height = 10, dpi = 300, units = "cm")
+```
+
+
+
+
+```{r Clean Up}
+
+rm(Age, df_cat, df_stigma_subset_long, df_stigma_subset_long2, df_stigma_subset_wide, df_stigma_subset_wide2, Gender, loadings.sds.promax, loadings.sds.promax.long, Migration, plot_factor1, Psi, results, S, School, Stigma, State, Sigma, stigma.sds, stigma.sds.fa, stigma.sds.fa.promax, Lambda, var_explained)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
