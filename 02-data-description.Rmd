@@ -211,7 +211,7 @@ ggsave(filename = "factorsds.pdf", width = 14, height = 10, dpi = 300, units = "
 
 ```{r Clean Up}
 
-rm(Age, df_cat, df_stigma_subset_long, df_stigma_subset_long2, df_stigma_subset_wide, df_stigma_subset_wide2, Gender, loadings.sds.promax, loadings.sds.promax.long, Migration, plot_factor1, Psi, results, S, School, Stigma, State, Sigma, stigma.sds, stigma.sds.fa, stigma.sds.fa.promax, Lambda, var_explained)
+rm(Age, df_cat, df_stigma_subset_long, df_stigma_subset_long2, df_stigma_subset_wide, df_stigma_subset_wide2, Gender, loadings.sds.promax, loadings.sds.promax.long, Migration, plot_factor1, Psi, results, S, School, State, Sigma, stigma.sds, stigma.sds.fa, stigma.sds.fa.promax, Lambda, var_explained)
 
 ```
 

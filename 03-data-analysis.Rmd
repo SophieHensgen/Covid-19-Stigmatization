@@ -171,7 +171,7 @@ ranin_long_m22 <-  lmer(gen_sds_longterm ~ gen_infektion_v + gen_ethnie_v + gen_
 ranin_pooled_m30 <-  lmer(gen_sds ~ 1 + (1 | id), data = df_stigma_pooled)
 summary(ranin_pooled_m30)
 
-ranin_pooled_m31 <-  lmer(gen_sds ~ type + gen_infektion_v + gen_ethnie_v + gen_beruf_v + gen_alter_v + gen_sex_v + (1 | id), data = df_stigma_pooled)
+ranin_pooled_m31 <-  lmer(gen_sds ~ gen_infektion_v + gen_ethnie_v + gen_beruf_v + gen_alter_v + gen_sex_v + type + type*gen_infektion_v + (1 | id), data = df_stigma_pooled)
 
 ```
 
